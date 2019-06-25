@@ -1,0 +1,68 @@
+-- style quiz usage funnel--
+--lists each question and the number of users that responded to that question -- 
+
+select question, count(distinct user_id)
+from survey
+group by question;
+
+
+-- begining of the A/B test --
+select distinct q.user_id,
+	case
+  when h.user_id is not null
+  then 'True'
+  else 'False'
+  end as 'is_home_try_on',
+	h.number_of_pairs,
+  case
+  when p.user_id is not null
+  then 'True'
+  else 'False'
+  end as'is_purchase'
+from quiz as q
+left join home_try_on as h
+	on q.user_id = h.user_id
+left join purchase as p
+	on q.user_id = p.user_id
+limit 10;
+
+
+-- created a table that gave the total count of home try ons and purchases by the number of pairs --
+with test as (select distinct q.user_id,
+	h.user_id is not null as 'is_home_try_on',
+	h.number_of_pairs as 'num_pairs',
+  p.user_id is not null as'is_purchase'
+from quiz as q
+left join home_try_on as h
+	on q.user_id = h.user_id
+left join purchase as p
+	on q.user_id = p.user_id)
+select 
+t.num_pairs,
+sum (t.is_home_try_on) as 'Total_Home_Try_On',
+sum (t.is_purchase) as 'Total_Purchase'
+from test as t
+where t.num_pairs is not null
+group by t.num_pairs;
+
+
+-- using the last query, find the % of purchases when grouped by num pairs --
+with test as (select distinct q.user_id,
+	h.user_id is not null as 'is_home_try_on',
+	h.number_of_pairs as 'num_pairs',
+  p.user_id is not null as'is_purchase'
+from quiz as q
+left join home_try_on as h
+	on q.user_id = h.user_id
+left join purchase as p
+	on q.user_id = p.user_id)
+select 
+	t.num_pairs,
+	sum (t.is_home_try_on) as 'Total_Home_Try_On',
+	sum (t.is_purchase) as 'Total_Purchase',
+  1.0 * sum(t.is_purchase)/ sum(t.is_home_try_on) as 'Try_on_to_Purchase_percentage'
+	from test as t
+	where t.num_pairs is not null
+	group by t.num_pairs;
+
+
